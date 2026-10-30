@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>公司年假管理</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --primary-light: #dbeafe;
+    --success: #16a34a;
+    --success-light: #dcfce7;
+    --warning: #ea580c;
+    --warning-light: #ffedd5;
+    --danger: #dc2626;
+    --danger-light: #fee2e2;
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-lg: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang HK', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-lg);
+  }
+  .header h1 { font-size: 1.25rem; font-weight: 700; }
+  .header p { font-size: 0.8rem; opacity: 0.9; margin-top: 0.25rem; }
+  .container { max-width: 900px; margin: 0 auto; padding: 1rem; }
+
+  .tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    background: var(--card);
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow);
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 0.625rem 0.5rem;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    background: var(--primary);
+    color: white;
+  }
+
+  .employee-card {
+    background: var(--card);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+  .employee-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .employee-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 1rem;
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    font-weight: 600;
+  }
+
+  .year-row {
+    display: grid;
+    grid-template-columns: 50px 1fr 1fr 1fr;
+    gap: 0.4rem;
+    align-items: center;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .year-row:last-child { border-bottom: none; }
+  .year-label {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .entitlement {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+  .entitlement b { color: var(--primary-dark); }
+  .ent-editable {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    justify-content: center;
+  }
+  .ent-editable input {
+    width: 34px;
+    padding: 0.15rem;
+    border: 1px solid var(--border);
+    border-radius: 0.3rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--primary-dark);
+  }
+  .ent-editable input:focus { outline: none; border-color: var(--primary); }
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  .input-group label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+  .leave-input {
+    width: 100%;
+    padding: 0.4rem 0.25rem;
+    border: 2px solid var(--border);
+    border-radius: 0.4rem;
+    font-size: 0.95rem;
+    text-align: center;
+    font-weight: 600;
+    transition: border-color 0.2s;
+  }
+  .leave-input:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+  .leave-input.over {
+    border-color: var(--danger);
+    background: var(--danger-light);
+    color: var(--danger);
+  }
+  .leave-input.na {
+    background: #f8fafc;
+    color: #cbd5e1;
+    cursor: not-allowed;
+  }
+
+  .summary-row {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 2px dashed var(--border);
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .summary-item {
+    text-align: center;
+    min-width: 70px;
+  }
+  .summary-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .summary-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+  }
+  .sv-green { color: var(--success); }
+  .sv-orange { color: var(--warning); }
+  .sv-red { color: var(--danger); }
+  .sv-blue { color: var(--primary); }
+
+  .table-wrap {
+    background: var(--card);
+    border-radius: 0.75rem;
+    overflow-x: auto;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 480px; }
+  th, td { padding: 0.6rem 0.5rem; text-align: center; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg); font-weight: 700; color: var(--text-muted); font-size: 0.75rem; }
+  td.left { text-align: left; }
+  .remaining-cell { font-weight: 700; font-size: 0.95rem; }
+  .over-text { color: var(--danger); }
+
+  .note {
+    background: var(--primary-light);
+    border-left: 3px solid var(--primary);
+    padding: 0.75rem 1rem;
+    border-radius: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--primary-dark);
+    margin-bottom: 1rem;
+  }
+  .rules-box {
+    background: var(--card);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+  .rules-box h3 { font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--primary-dark); }
+  .rules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+    gap: 0.5rem;
+  }
+  .rule-item {
+    background: var(--bg);
+    padding: 0.4rem;
+    border-radius: 0.4rem;
+    text-align: center;
+    font-size: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .rule-item label { font-size: 0.7rem; color: var(--text-muted); }
+  .rule-item b { color: var(--primary-dark); font-size: 0.9rem; }
+  .rule-item input {
+    width: 100%;
+    padding: 0.2rem;
+    border: 1px solid var(--border);
+    border-radius: 0.3rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--primary-dark);
+  }
+  .rule-item input:focus { outline: none; border-color: var(--primary); }
+
+  .staff-edit-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .staff-edit-row:last-child { border-bottom: none; }
+  .staff-edit-name {
+    flex: 1;
+    min-width: 80px;
+  }
+  .staff-edit-name input {
+    width: 100%;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+  .staff-edit-name input:focus { outline: none; border-color: var(--primary); }
+  .date-input {
+    padding: 0.3rem;
+    border: 1px solid var(--primary);
+    border-radius: 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary-dark);
+    background: white;
+  }
+  .date-input:focus { outline: none; border-color: var(--primary-dark); }
+
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-success { background: var(--success); color: white; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+  .btn:hover { opacity: 0.85; transform: translateY(-1px); }
+  .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+
+  .wa-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #25d366;
+    color: white;
+    text-decoration: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  .wa-btn:hover { opacity: 0.9; }
+
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: white;
+    padding: 0.6rem 1.2rem;
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 1000;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  .footer {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+  }
+
+  @media (max-width: 500px) {
+    .year-row { grid-template-columns: 45px 1fr 1fr 1fr; gap: 0.25rem; }
+    .leave-input { font-size: 0.85rem; padding: 0.35rem 0.15rem; }
+    .summary-value { font-size: 1rem; }
+    .tab-btn { font-size: 0.75rem; padding: 0.5rem 0.25rem; }
+    .staff-edit-row { gap: 0.3rem; }
+    .date-input { font-size: 0.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏖️ 公司年假管理系統</h1>
+  <p>入職日期自動計算年資 · 即時統計剩餘天數</p>
+</div>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="input">✍️ 輸入年假</button>
+    <button class="tab-btn" data-tab="summary">📊 管理者總覽</button>
+    <button class="tab-btn" data-tab="rules">⚙️ 設定員工與額度</button>
+  </div>
+
+  <!-- 輸入頁 -->
+  <div id="tab-input" class="tab-content">
+    <div class="note">
+      💡 請在下方輸入每位員工各年度「已放假天數」，系統依入職日期自動計算年資與額度，即時顯示剩餘天數。<br>
+      如需修改入職日期或年假額度規則，請到「⚙️ 設定員工與額度」頁面。
+    </div>
+    <div id="employee-list"></div>
+    <div class="actions">
+      <button class="btn btn-success" onclick="saveAll()">💾 儲存所有資料</button>
+      <button class="btn btn-outline" onclick="exportData()">📋 匯出資料</button>
+    </div>
+  </div>
+
+  <!-- 總覽頁 -->
+  <div id="tab-summary" class="tab-content" style="display:none">
+    <div class="note">
+      📊 以下為全體員工年假使用狀況總覽，年資依今日日期自動計算。
+    </div>
+    <div class="table-wrap">
+      <table id="summary-table"></table>
+    </div>
+    <div class="actions">
+      <button class="btn btn-outline" onclick="exportData()">📋 匯出資料</button>
+      <a class="wa-btn" id="wa-share" href="#" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.608.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.359.101 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.305-1.654a11.9 11.9 0 005.683 1.444h.005c6.581 0 11.94-5.359 11.943-11.893a11.82 11.82 0 00-3.416-8.448"/></svg>
+        分享到 WhatsApp
+      </a>
+    </div>
+  </div>
+
+  <!-- 設定頁（員工入職日期與額度） -->
+  <div id="tab-rules" class="tab-content" style="display:none">
+    <div class="note">
+      ⚙️ 管理者可在此設定「員工入職日期」與「年假額度規則」。<br>
+      年資由入職日期自動計算至今日，無需手動維護。所有變更即時生效並自動儲存。
+    </div>
+
+    <!-- 員工設定 -->
+    <div class="rules-box" style="margin-bottom:1rem">
+      <h3>👥 員工資料設定</h3>
+      <div id="staff-edit-list"></div>
+      <div class="actions">
+        <button class="btn btn-primary btn-sm" onclick="addStaff()">➕ 新增員工</button>
+      </div>
+    </div>
+
+    <!-- 年假額度規則設定 -->
+    <div class="rules-box">
+      <h3>📅 年假額度規則（年資 → 天數）</h3>
+      <div class="rules-grid" id="rules-grid"></div>
+      <div class="actions">
+        <button class="btn btn-outline btn-sm" onclick="resetToDefaults()">↩️ 還原預設值</button>
+      </div>
+    </div>
+
+    <div style="height:1rem"></div>
+
+    <!-- 預覽 -->
+    <div class="rules-box">
+      <h3>🔍 各員工年資與額度預覽</h3>
+      <div id="staff-preview"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    資料儲存於瀏覽器本地端（localStorage）· 各裝置需分別輸入
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== 預設值 ====================
+const DEFAULT_RULES = { 1:7, 2:7, 3:8, 4:9, 5:10, 6:11, 7:12, 8:13, 9:14 };
+
+// 員工預設資料：dateJoined = 入職日期（YYYY-MM-DD）
+// 依據滿年制（到 2026 年計）推算：
+//   Fanny 第8年 → 2018 年入職
+//   Suki  第3年 → 2023 年入職
+//   Connie 第8年 → 2018 年入職
+//   Ling  第2年 → 2024 年入職
+// （之後可在 App 內修改為真實入職日期）
+const DEFAULT_STAFF = [
+  { id: 'fanny',  name: 'Fanny',  dateJoined: '2018-01-01' },
+  { id: 'suki',   name: 'Suki',   dateJoined: '2023-01-01' },
+  { id: 'connie', name: 'Connie', dateJoined: '2018-01-01' },
+  { id: 'ling',   name: 'Ling',   dateJoined: '2024-01-01' }
+];
+
+const STORAGE_KEYS = {
+  leave: 'leave_data_v3',
+  rules: 'leave_rules_v3',
+  staff: 'leave_staff_v3'
+};
+
+// ==================== 日期與年資計算 ====================
+
+// 計算兩個日期之間的「滿年數」（未滿整年不計）
+// 採用：年份差，若月份/日期未到則減1
+function calcFullYears(dateStr, refDate) {
+  if (!dateStr) return 0;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return 0;
+  const ref = refDate || new Date();
+  let years = ref.getFullYear() - d.getFullYear();
+  // 若今年的月日還沒到入職月日，年資少1
+  const mDiff = ref.getMonth() - d.getMonth();
+  if (mDiff < 0 || (mDiff === 0 && ref.getDate() < d.getDate())) {
+    years--;
+  }
+  return years < 0 ? 0 : years;
+}
+
+// 員工「今日」的年資
+function getCurrentYears(staff) {
+  return calcFullYears(staff.dateJoined, new Date());
+}
+
+// 員工在「指定年度結束時」的年資（以該年12月31日為基準）
+// 用於判斷該年度是否已入職及該年度適用的額度
+function getYearsForYear(staff, year) {
+  if (!staff.dateJoined) return 0;
+  const joinDate = new Date(staff.dateJoined);
+  if (isNaN(joinDate.getTime())) return 0;
+  // 該年度結束日
+  const yearEnd = new Date(year, 11, 31);
+  return calcFullYears(staff.dateJoined, yearEnd);
+}
+
+// 該年度是否適用（已入職）
+function isApplicableForYear(staff, year) {
+  if (!staff.dateJoined) return false;
+  const joinDate = new Date(staff.dateJoined);
+  if (isNaN(joinDate.getTime())) return false;
+  // 入職日期在該年度內或之前
+  return joinDate.getFullYear() <= year;
+}
+
+// 年度範圍：自動算最近 3 年（含今年）
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = [CURRENT_YEAR - 2, CURRENT_YEAR - 1, CURRENT_YEAR];
+
+// ==================== 資料讀寫 ====================
+function loadJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(fallback));
+  } catch(e) { return JSON.parse(JSON.stringify(fallback)); }
+}
+function saveJSON(key, data) {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+// 資料遷移：若舊版資料有 years 欄位但無 dateJoined，自動推算入職年份
+function migrateStaff(staff) {
+  const migrated = JSON.parse(JSON.stringify(staff));
+  migrated.forEach(s => {
+    if (!s.dateJoined && s.years) {
+      // 以當前年份減去年資推算入職年份，假設1月1日入職
+      s.dateJoined = (CURRENT_YEAR - s.years) + '-01-01';
+    }
+    if (!s.dateJoined) s.dateJoined = CURRENT_YEAR + '-01-01';
+    delete s.years; // 移除舊欄位
+  });
+  return migrated;
+}
+
+let leaveRules = loadJSON(STORAGE_KEYS.rules, DEFAULT_RULES);
+let staffList  = migrateStaff(loadJSON(STORAGE_KEYS.staff, DEFAULT_STAFF));
+let leaveData  = loadJSON(STORAGE_KEYS.leave, {});
+
+function saveRules() { saveJSON(STORAGE_KEYS.rules, leaveRules); }
+function saveStaff() { saveJSON(STORAGE_KEYS.staff, staffList); }
+function saveLeave() { saveJSON(STORAGE_KEYS.leave, leaveData); }
+
+// 取得指定年資的年假額度（從可編輯的規則表查）
+function getEntitlement(yearsOfService) {
+  if (yearsOfService < 1) return 0;
+  if (yearsOfService >= 9) return leaveRules[9] || 14;
+  return leaveRules[yearsOfService] || 0;
+}
+
+// 取得某員工某年度已放天數
+function getTaken(staffId, year) {
+  const y = leaveData[staffId];
+  if (!y) return 0;
+  const v = parseFloat(y[year]);
+  return isNaN(v) ? 0 : v;
+}
+
+// 取得有效額度（含員工個人覆蓋）
+function getEffectiveEntitlement(staff, year) {
+  const overrides = (leaveData[staff.id] && leaveData[staff.id].overrides) || {};
+  if (overrides[year] !== undefined && overrides[year] !== null && !isNaN(parseFloat(overrides[year]))) {
+    return parseFloat(overrides[year]);
+  }
+  const yrs = getYearsForYear(staff, year);
+  return getEntitlement(yrs);
+}
+
+// 計算剩餘
+function calcRemaining(staff, year) {
+  const yrs = getYearsForYear(staff, year);
+  const applicable = isApplicableForYear(staff, year);
+  const entitlement = getEffectiveEntitlement(staff, year);
+  const taken = getTaken(staff.id, year);
+  return { entitlement, taken, remaining: entitlement - taken, applicable, years: yrs };
+}
+
+// ==================== 渲染：輸入頁 ====================
+function renderInputPage() {
+  const list = document.getElementById('employee-list');
+  list.innerHTML = staffList.map(staff => {
+    const currentYears = getCurrentYears(staff);
+    const yearRows = YEARS.map(year => {
+      const c = calcRemaining(staff, year);
+      const overClass = c.taken > c.entitlement && c.applicable ? 'over' : '';
+      const naClass = !c.applicable ? 'na' : '';
+      const disabled = !c.applicable ? 'disabled' : '';
+      const placeholder = c.applicable ? '0' : '—';
+      const entText = c.applicable
+        ? `<span class="ent-editable"><input type="number" min="0" step="0.5" value="${c.entitlement}" data-staff="${staff.id}" data-year="${year}" data-field="ent" title="修改此年度額度"> 天</span>`
+        : '未入職';
+      return `
+        <div class="year-row">
+          <div class="year-label">${year}</div>
+          <div class="entitlement">${entText}</div>
+          <div class="input-group">
+            <label>已放</label>
+            <input type="number" min="0" step="0.5" class="leave-input ${overClass} ${naClass}"
+                   data-staff="${staff.id}" data-year="${year}" data-field="taken"
+                   value="${c.applicable ? (c.taken || '') : ''}"
+                   placeholder="${placeholder}" ${disabled}>
+          </div>
+          <div class="input-group">
+            <label>剩餘</label>
+            <div class="leave-input" style="background:${getRemainingBg(c)};color:${getRemainingColor(c)};font-weight:700;">
+              ${c.applicable ? c.remaining : '—'}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    const totals = YEARS.map(year => calcRemaining(staff, year));
+    const totalEnt = totals.filter(t => t.applicable).reduce((s,t) => s + t.entitlement, 0);
+    const totalTaken = totals.filter(t => t.applicable).reduce((s,t) => s + t.taken, 0);
+    const totalRem = totalEnt - totalTaken;
+
+    return `
+      <div class="employee-card">
+        <div class="employee-header">
+          <div class="employee-name">
+            <div class="avatar">${(staff.name||'?')[0]}</div>
+            ${staff.name}
+          </div>
+          <label class="badge" style="display:inline-flex;align-items:center;gap:0.3rem;cursor:pointer;padding:0.2rem 0.5rem;">
+            入職：
+            <input type="date" value="${staff.dateJoined || ''}" data-idx="${idx}" data-field="dateJoined-inline" style="border:none;background:transparent;font-size:0.75rem;color:inherit;padding:0;cursor:pointer;width:7.5rem;" title="修改入職日期">
+            · 年資：第 ${currentYears} 年
+          </label>
+        </div>
+        <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:0.5rem;display:grid;grid-template-columns:50px 1fr 1fr 1fr;gap:0.4rem;">
+          <div>年度</div><div>額度</div><div>已放天數</div><div>剩餘</div>
+        </div>
+        ${yearRows}
+        <div class="summary-row">
+          <div class="summary-item">
+            <div class="summary-value sv-blue">${totalEnt}</div>
+            <div class="summary-label">3年總額度</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-value sv-orange">${totalTaken}</div>
+            <div class="summary-label">3年總已放</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-value ${totalRem < 0 ? 'sv-red' : 'sv-green'}">${totalRem}</div>
+            <div class="summary-label">總剩餘</div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // 綁定「已放假天數」輸入
+  document.querySelectorAll('.leave-input[data-field="taken"]').forEach(input => {
+    input.addEventListener('input', onTakenInput);
+  });
+  // 綁定「年度額度」輸入
+  document.querySelectorAll('input[data-field="ent"]').forEach(input => {
+    input.addEventListener('input', onEntitlementInput);
+  });
+  // 綁定輸入頁內聯「入職日期」輸入
+  document.querySelectorAll('input[data-field="dateJoined-inline"]').forEach(input => {
+    input.addEventListener('change', onInputPageDateInput);
+    input.addEventListener('input', onInputPageDateInput);
+  });
+}
+
+function onInputPageDateInput(e) {
+  const idx = parseInt(e.target.dataset.idx);
+  staffList[idx].dateJoined = e.target.value;
+  saveStaff();
+  // 即時重新渲染輸入頁（年資與額度會自動重算）
+  renderInputPage();
+}
+
+function getRemainingBg(c) {
+  if (!c.applicable) return '#f8fafc';
+  if (c.remaining < 0) return 'var(--danger-light)';
+  if (c.remaining <= 2) return 'var(--warning-light)';
+  return 'var(--success-light)';
+}
+function getRemainingColor(c) {
+  if (!c.applicable) return '#cbd5e1';
+  if (c.remaining < 0) return 'var(--danger)';
+  if (c.remaining <= 2) return 'var(--warning)';
+  return 'var(--success)';
+}
+
+function onTakenInput(e) {
+  const staffId = e.target.dataset.staff;
+  const year = parseInt(e.target.dataset.year);
+  const val = parseFloat(e.target.value);
+  if (!leaveData[staffId]) leaveData[staffId] = {};
+  leaveData[staffId][year] = isNaN(val) ? 0 : val;
+  saveLeave();
+  renderInputPage();
+  renderSummary();
+  const newInput = document.querySelector(`.leave-input[data-staff="${staffId}"][data-year="${year}"]`);
+  if (newInput) { newInput.focus(); newInput.setSelectionRange(newInput.value.length, newInput.value.length); }
+  showToast('✅ 已自動儲存');
+}
+
+function onEntitlementInput(e) {
+  const staffId = e.target.dataset.staff;
+  const year = parseInt(e.target.dataset.year);
+  const val = parseFloat(e.target.value);
+  if (!leaveData[staffId]) leaveData[staffId] = {};
+  if (!leaveData[staffId].overrides) leaveData[staffId].overrides = {};
+  leaveData[staffId].overrides[year] = isNaN(val) ? 0 : val;
+  saveLeave();
+  renderInputPage();
+  renderSummary();
+  const sel = `input[data-field="ent"][data-staff="${staffId}"][data-year="${year}"]`;
+  const newInput = document.querySelector(sel);
+  if (newInput) { newInput.focus(); newInput.setSelectionRange(newInput.value.length, newInput.value.length); }
+  showToast('✅ 額度已更新');
+}
+
+// ==================== 渲染：總覽頁 ====================
+function renderSummary() {
+  const tbl = document.getElementById('summary-table');
+  let html = `<thead><tr>
+    <th class="left">員工</th><th>入職日期</th><th>年資</th>`;
+  YEARS.forEach(y => html += `<th>${y}<br>額度</th>`);
+  YEARS.forEach(y => html += `<th>${y}<br>已放</th>`);
+  html += `<th>總額度</th><th>總已放</th><th>總剩餘</th></tr></thead><tbody>`;
+  staffList.forEach(staff => {
+    const currentYears = getCurrentYears(staff);
+    const totals = YEARS.map(y => calcRemaining(staff, y));
+    const totalEnt = totals.filter(t=>t.applicable).reduce((s,t)=>s+t.entitlement,0);
+    const totalTaken = totals.filter(t=>t.applicable).reduce((s,t)=>s+t.taken,0);
+    const totalRem = totalEnt - totalTaken;
+    html += `<tr>
+      <td class="left"><b>${staff.name}</b></td>
+      <td style="font-size:0.75rem">${staff.dateJoined || '—'}</td>
+      <td>第${currentYears}年</td>`;
+    totals.forEach(t => html += `<td>${t.applicable ? t.entitlement : '—'}</td>`);
+    totals.forEach(t => {
+      const over = t.applicable && t.taken > t.entitlement;
+      html += `<td${over?' class="over-text"':''}>${t.applicable ? t.taken : '—'}</td>`;
+    });
+    html += `<td><b>${totalEnt}</b></td>
+             <td>${totalTaken}</td>
+             <td class="remaining-cell" style="color:${totalRem<0?'var(--danger)':totalRem<=2?'var(--warning)':'var(--success)'}">${totalRem}</td>
+           </tr>`;
+  });
+  // 合計行
+  let grandEnt=0, grandTaken=0;
+  staffList.forEach(s => YEARS.forEach(y => { const c=calcRemaining(s,y); if(c.applicable){grandEnt+=c.entitlement;grandTaken+=c.taken;} }));
+  html += `<tr style="background:var(--bg);font-weight:700">
+    <td class="left" colspan="3">全公司合計</td>`;
+  YEARS.forEach(y => html += `<td>${staffList.reduce((s,st)=>{const c=calcRemaining(st,y);return s+(c.applicable?c.entitlement:0);},0)}</td>`);
+  YEARS.forEach(y => html += `<td>${staffList.reduce((s,st)=>{const c=calcRemaining(st,y);return s+(c.applicable?c.taken:0);},0)}</td>`);
+  html += `<td>${grandEnt}</td><td>${grandTaken}</td>
+           <td class="remaining-cell" style="color:${(grandEnt-grandTaken)<0?'var(--danger)':'var(--success)'}">${grandEnt-grandTaken}</td>
+         </tr>`;
+  html += `</tbody>`;
+  tbl.innerHTML = html;
+
+  // WhatsApp 分享連結
+  const waText = encodeURIComponent('🏖️ 公司年假管理系統\n請各同事點擊連結輸入已放年假：\n' + location.href);
+  document.getElementById('wa-share').href = 'https://wa.me/?text=' + waText;
+}
+
+// ==================== 渲染：設定頁 ====================
+function renderRules() {
+  // 員工資料設定
+  const staffEdit = document.getElementById('staff-edit-list');
+  staffEdit.innerHTML = staffList.map((s, idx) => {
+    const currentYears = getCurrentYears(s);
+    return `
+    <div class="staff-edit-row">
+      <div class="avatar">${(s.name||'?')[0]}</div>
+      <div class="staff-edit-name">
+        <input type="text" value="${s.name}" data-idx="${idx}" data-field="name" placeholder="員工姓名">
+      </div>
+      <label style="font-size:0.75rem;color:var(--text-muted)">入職日期</label>
+      <input type="date" class="date-input" value="${s.dateJoined || ''}" data-idx="${idx}" data-field="dateJoined">
+      <span class="badge">第${currentYears}年</span>
+      <button class="btn btn-danger btn-sm" onclick="removeStaff(${idx})">🗑️</button>
+    </div>`;
+  }).join('');
+
+  // 綁定員工設定輸入
+  staffEdit.querySelectorAll('input[data-field="name"]').forEach(input => {
+    input.addEventListener('input', onStaffNameInput);
+  });
+  staffEdit.querySelectorAll('input[data-field="dateJoined"]').forEach(input => {
+    input.addEventListener('change', onStaffDateInput);
+    input.addEventListener('input', onStaffDateInput);
+  });
+
+  // 年假額度規則
+  const grid = document.getElementById('rules-grid');
+  grid.innerHTML = Object.entries(leaveRules).map(([y, d]) =>
+    `<div class="rule-item">
+      <label>第 ${y} 年</label>
+      <input type="number" min="0" step="0.5" value="${d}" data-year="${y}" data-field="rule-days">
+      <b>${d} 天</b>
+    </div>`
+  ).join('');
+  grid.querySelectorAll('input[data-field="rule-days"]').forEach(input => {
+    input.addEventListener('input', onRuleInput);
+  });
+
+  renderStaffPreview();
+}
+
+function onStaffNameInput(e) {
+  const idx = parseInt(e.target.dataset.idx);
+  staffList[idx].name = e.target.value;
+  saveStaff();
+  renderInputPage();
+  renderSummary();
+  renderStaffPreview();
+}
+
+function onStaffDateInput(e) {
+  const idx = parseInt(e.target.dataset.idx);
+  staffList[idx].dateJoined = e.target.value;
+  saveStaff();
+  // 更新該行的年資badge
+  const row = e.target.closest('.staff-edit-row');
+  if (row) {
+    const badge = row.querySelector('.badge');
+    if (badge) badge.textContent = '第' + getCurrentYears(staffList[idx]) + '年';
+  }
+  renderInputPage();
+  renderSummary();
+  renderStaffPreview();
+  showToast('✅ 入職日期已更新');
+}
+
+function onRuleInput(e) {
+  const year = e.target.dataset.year;
+  const val = parseFloat(e.target.value);
+  leaveRules[year] = isNaN(val) || val < 0 ? 0 : val;
+  saveRules();
+  renderInputPage();
+  renderSummary();
+  renderStaffPreview();
+  const item = e.target.closest('.rule-item');
+  if (item) {
+    const b = item.querySelector('b');
+    if (b) b.textContent = leaveRules[year] + ' 天';
+  }
+}
+
+function renderStaffPreview() {
+  const el = document.getElementById('staff-preview');
+  if (!el) return;
+  el.innerHTML = staffList.map(s => {
+    const curYrs = getCurrentYears(s);
+    const cells = YEARS.map(y => {
+      const c = calcRemaining(s, y);
+      return c.applicable ? `${y}:第${c.years}年/${c.entitlement}天` : `${y}:未入職`;
+    }).join(' · ');
+    return `<div style="padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.8rem">
+      <b>${s.name}</b>（入職 ${s.dateJoined}，今日年資第${curYrs}年）→ ${cells}
+    </div>`;
+  }).join('');
+}
+
+function addStaff() {
+  const newId = 'staff_' + Date.now();
+  const today = new Date().toISOString().split('T')[0];
+  staffList.push({ id: newId, name: '新員工', dateJoined: today });
+  saveStaff();
+  renderRules();
+  renderInputPage();
+  renderSummary();
+  showToast('✅ 已新增員工');
+}
+
+function removeStaff(idx) {
+  if (!confirm('確定要刪除「' + staffList[idx].name + '」嗎？相關年假記錄也會一併刪除。')) return;
+  const id = staffList[idx].id;
+  staffList.splice(idx, 1);
+  delete leaveData[id];
+  saveStaff();
+  saveLeave();
+  renderRules();
+  renderInputPage();
+  renderSummary();
+  showToast('✅ 已刪除員工');
+}
+
+function resetToDefaults() {
+  if (!confirm('確定要將年假額度規則還原為預設值嗎？')) return;
+  leaveRules = JSON.parse(JSON.stringify(DEFAULT_RULES));
+  saveRules();
+  renderRules();
+  renderInputPage();
+  renderSummary();
+  showToast('✅ 已還原預設值');
+}
+
+// ==================== 儲存 / 匯出 ====================
+function saveAll() {
+  saveLeave(); saveStaff(); saveRules();
+  showToast('💾 全部資料已儲存！');
+}
+function exportData() {
+  let text = '員工年假記錄（' + YEARS[0] + '-' + YEARS[2] + '）\n';
+  text += '匯出日期：' + new Date().toLocaleDateString('zh-HK') + '\n\n';
+  staffList.forEach(s => {
+    const curYrs = getCurrentYears(s);
+    text += `【${s.name}】（入職：${s.dateJoined}，今日年資：第${curYrs}年）\n`;
+    YEARS.forEach(y => {
+      const c = calcRemaining(s, y);
+      text += `  ${y}年：${c.applicable ? `額度${c.entitlement}天 / 已放${c.taken}天 / 剩餘${c.remaining}天` : '未入職'}\n`;
+    });
+    text += '\n';
+  });
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `年假記錄_${YEARS[0]}-${YEARS[2]}.txt`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('📋 資料已匯出！');
+}
+
+// ==================== Toast ====================
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// ==================== Tab 切換 ====================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+    document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
+    if (btn.dataset.tab === 'summary') renderSummary();
+    if (btn.dataset.tab === 'rules') renderRules();
+  });
+});
+
+// ==================== 初始化 ====================
+renderInputPage();
+renderSummary();
+renderRules();
+</script>
+</body>
+</html>
