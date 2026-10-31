@@ -402,6 +402,7 @@
     <div class="actions">
       <button class="btn btn-success" onclick="saveAll()">💾 儲存所有資料</button>
       <button class="btn btn-outline" onclick="exportData()">📋 匯出資料</button>
+      <button class="btn btn-danger" onclick="resetAllData()" style="font-size:0.8rem">🔄 重置全部資料</button>
     </div>
   </div>
 
@@ -549,19 +550,40 @@ function saveJSON(key, data) {
 function migrateStaff(staff) {
   const migrated = JSON.parse(JSON.stringify(staff));
   migrated.forEach(s => {
-    if (!s.dateJoined && s.years) {
-      // 以當前年份減去年資推算入職年份，假設1月1日入職
+    // 確保有 id
+    if (!s.id) s.id = 'staff_' + Math.random().toString(36).substr(2, 9);
+    // 確保有 name
+    if (!s.name) s.name = '員工';
+    // 如果有 years 欄位但無 dateJoined，推算入職年份
+    if ((!s.dateJoined || isNaN(new Date(s.dateJoined).getTime())) && s.years) {
       s.dateJoined = (CURRENT_YEAR - s.years) + '-01-01';
     }
-    if (!s.dateJoined) s.dateJoined = CURRENT_YEAR + '-01-01';
+    // 如果 dateJoined 仍為空或無效，預設為當年1月1日
+    if (!s.dateJoined || isNaN(new Date(s.dateJoined).getTime())) {
+      s.dateJoined = CURRENT_YEAR + '-01-01';
+    }
     delete s.years; // 移除舊欄位
   });
   return migrated;
 }
 
+// 確保 leaveData 結構完整
+function migrateLeaveData(data) {
+  if (!data || typeof data !== 'object') return {};
+  Object.keys(data).forEach(staffId => {
+    if (!data[staffId] || typeof data[staffId] !== 'object') {
+      data[staffId] = {};
+    }
+  });
+  return data;
+}
+
 let leaveRules = loadJSON(STORAGE_KEYS.rules, DEFAULT_RULES);
 let staffList  = migrateStaff(loadJSON(STORAGE_KEYS.staff, DEFAULT_STAFF));
-let leaveData  = loadJSON(STORAGE_KEYS.leave, {});
+let leaveData  = migrateLeaveData(loadJSON(STORAGE_KEYS.leave, {}));
+
+// 確保 leaveRules 有效
+if (!leaveRules || typeof leaveRules !== 'object') leaveRules = JSON.parse(JSON.stringify(DEFAULT_RULES));
 
 function saveRules() { saveJSON(STORAGE_KEYS.rules, leaveRules); }
 function saveStaff() { saveJSON(STORAGE_KEYS.staff, staffList); }
@@ -604,7 +626,7 @@ function calcRemaining(staff, year) {
 // ==================== 渲染：輸入頁 ====================
 function renderInputPage() {
   const list = document.getElementById('employee-list');
-  list.innerHTML = staffList.map(staff => {
+  list.innerHTML = staffList.map((staff, idx) => {
     const currentYears = getCurrentYears(staff);
     const yearRows = YEARS.map(year => {
       const c = calcRemaining(staff, year);
@@ -649,7 +671,7 @@ function renderInputPage() {
           </div>
           <label class="badge" style="display:inline-flex;align-items:center;gap:0.3rem;cursor:pointer;padding:0.2rem 0.5rem;">
             入職：
-            <input type="date" value="${staff.dateJoined || ''}" data-idx="${idx}" data-field="dateJoined-inline" style="border:none;background:transparent;font-size:0.75rem;color:inherit;padding:0;cursor:pointer;width:7.5rem;" title="修改入職日期">
+            <input type="date" value="${staff.dateJoined || ''}" data-staff-id="${staff.id}" data-field="dateJoined-inline" style="border:none;background:transparent;font-size:0.75rem;color:inherit;padding:0;cursor:pointer;width:7.5rem;" title="修改入職日期">
             · 年資：第 ${currentYears} 年
           </label>
         </div>
@@ -682,16 +704,17 @@ function renderInputPage() {
   document.querySelectorAll('input[data-field="ent"]').forEach(input => {
     input.addEventListener('input', onEntitlementInput);
   });
-  // 綁定輸入頁內聯「入職日期」輸入
+  // 綁定輸入頁內聯「入職日期」輸入（只用 change 事件，避免手機上 input 事件頻繁觸發重渲染）
   document.querySelectorAll('input[data-field="dateJoined-inline"]').forEach(input => {
     input.addEventListener('change', onInputPageDateInput);
-    input.addEventListener('input', onInputPageDateInput);
   });
 }
 
 function onInputPageDateInput(e) {
-  const idx = parseInt(e.target.dataset.idx);
-  staffList[idx].dateJoined = e.target.value;
+  const staffId = e.target.dataset.staffId;
+  const staff = staffList.find(s => s.id === staffId);
+  if (!staff) return;
+  staff.dateJoined = e.target.value;
   saveStaff();
   // 即時重新渲染輸入頁（年資與額度會自動重算）
   renderInputPage();
@@ -717,11 +740,59 @@ function onTakenInput(e) {
   if (!leaveData[staffId]) leaveData[staffId] = {};
   leaveData[staffId][year] = isNaN(val) ? 0 : val;
   saveLeave();
-  renderInputPage();
+  // 只更新该行的剩餘和匯總，不重新渲染整個輸入頁（避免手機上輸入被打斷）
+  updateRemainingCell(staffId, year);
+  updateStaffSummary(staffId);
   renderSummary();
-  const newInput = document.querySelector(`.leave-input[data-staff="${staffId}"][data-year="${year}"]`);
-  if (newInput) { newInput.focus(); newInput.setSelectionRange(newInput.value.length, newInput.value.length); }
-  showToast('✅ 已自動儲存');
+}
+
+// 局部更新某員工某年度的「剩餘」格子
+function updateRemainingCell(staffId, year) {
+  const staff = staffList.find(s => s.id === staffId);
+  if (!staff) return;
+  const c = calcRemaining(staff, year);
+  const cell = document.querySelector(`.leave-input[data-staff="${staffId}"][data-year="${year}"]`);
+  // 更新輸入框的 over/na 樣式
+  if (cell) {
+    cell.classList.remove('over', 'na');
+    if (!c.applicable) cell.classList.add('na');
+    else if (c.taken > c.entitlement) cell.classList.add('over');
+  }
+  // 更新剩餘顯示
+  const remCell = cell ? cell.closest('.year-row').querySelector('.input-group:last-child .leave-input') : null;
+  if (remCell) {
+    remCell.textContent = c.applicable ? c.remaining : '—';
+    remCell.style.background = getRemainingBg(c);
+    remCell.style.color = getRemainingColor(c);
+  }
+}
+
+// 局部更新某員工的三年匯總
+function updateStaffSummary(staffId) {
+  const staff = staffList.find(s => s.id === staffId);
+  if (!staff) return;
+  const totals = YEARS.map(year => calcRemaining(staff, year));
+  const totalEnt = totals.filter(t => t.applicable).reduce((s,t) => s + t.entitlement, 0);
+  const totalTaken = totals.filter(t => t.applicable).reduce((s,t) => s + t.taken, 0);
+  const totalRem = totalEnt - totalTaken;
+  const card = document.querySelector(`.employee-card`);
+  // 用 data-staff 屬性找到對應的卡片
+  const cards = document.querySelectorAll('#employee-list .employee-card');
+  // 找到包含該 staffId 輸入框的卡片
+  let targetCard = null;
+  cards.forEach(card => {
+    const inp = card.querySelector(`input[data-staff="${staffId}"]`);
+    if (inp) targetCard = card;
+  });
+  if (targetCard) {
+    const sums = targetCard.querySelectorAll('.summary-value');
+    if (sums.length >= 3) {
+      sums[0].textContent = totalEnt;
+      sums[1].textContent = totalTaken;
+      sums[2].textContent = totalRem;
+      sums[2].className = 'summary-value ' + (totalRem < 0 ? 'sv-red' : 'sv-green');
+    }
+  }
 }
 
 function onEntitlementInput(e) {
@@ -732,12 +803,10 @@ function onEntitlementInput(e) {
   if (!leaveData[staffId].overrides) leaveData[staffId].overrides = {};
   leaveData[staffId].overrides[year] = isNaN(val) ? 0 : val;
   saveLeave();
-  renderInputPage();
+  // 只局部更新，不重新渲染整個頁面
+  updateRemainingCell(staffId, year);
+  updateStaffSummary(staffId);
   renderSummary();
-  const sel = `input[data-field="ent"][data-staff="${staffId}"][data-year="${year}"]`;
-  const newInput = document.querySelector(sel);
-  if (newInput) { newInput.focus(); newInput.setSelectionRange(newInput.value.length, newInput.value.length); }
-  showToast('✅ 額度已更新');
 }
 
 // ==================== 渲染：總覽頁 ====================
@@ -917,6 +986,20 @@ function resetToDefaults() {
   renderInputPage();
   renderSummary();
   showToast('✅ 已還原預設值');
+}
+
+// 重置全部資料（員工、年假記錄、規則）為預設值
+function resetAllData() {
+  if (!confirm('⚠️ 確定要重置全部資料嗎？\n\n這會清除所有已輸入的年假記錄、員工設定和額度規則，恢復為初始預設值。\n\n此操作無法復原！')) return;
+  if (!confirm('再次確認：真的要清除全部資料嗎？')) return;
+  staffList = migrateStaff(JSON.parse(JSON.stringify(DEFAULT_STAFF)));
+  leaveData = {};
+  leaveRules = JSON.parse(JSON.stringify(DEFAULT_RULES));
+  saveStaff(); saveLeave(); saveRules();
+  renderInputPage();
+  renderSummary();
+  renderRules();
+  showToast('✅ 全部資料已重置為預設值');
 }
 
 // ==================== 儲存 / 匯出 ====================
